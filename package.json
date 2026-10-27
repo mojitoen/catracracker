@@ -1,0 +1,19 @@
+{
+  "name": "catracracker",
+  "version": "0.1.0",
+  "description": "A hashcat wrapper/job queue for CTF cracking, run on a dedicated GPU server (Cracken).",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node src/server.js",
+    "worker": "node src/worker.js",
+    "web": "node src/app.js",
+    "cli": "node src/cli.js",
+    "test": "node test/harness.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "commander": "^12.1.0",
+    "express": "^4.19.2"
+  }
+}

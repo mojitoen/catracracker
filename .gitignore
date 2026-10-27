@@ -1,0 +1,17 @@
+node_modules/
+wordlists/*.txt
+.env
+
+# SQLite database + its WAL working files
+*.db
+*.db-wal
+*.db-shm
+
+# hashcat rule files (copied from hashcat, like wordlists)
+rules/*.rule
+
+# ...but ctf-custom is our own hand-maintained list, keep it versioned
+!wordlists/ctf-custom.txt
+
+# editor / tooling config
+.claude/

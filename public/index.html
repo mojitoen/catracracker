@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CatraCracker</title>
+<style>
+  :root {
+    --bg: #0f1216; --panel: #171c23; --border: #2a323d; --text: #e6edf3;
+    --muted: #8b98a5; --accent: #4da3ff;
+    --queued: #8b98a5; --running: #4da3ff; --done: #3fb950; --failed: #f85149;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  }
+  a { color: var(--accent); }
+  header { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  h1 { margin: 0; font-size: 20px; letter-spacing: .3px; }
+  h1 span { color: var(--accent); }
+  .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 16px 60px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; margin-bottom: 24px;
+  }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 0 0 4px; }
+  textarea, input, select {
+    width: 100%; background: #0d1117; color: var(--text);
+    border: 1px solid var(--border); border-radius: 7px; padding: 9px 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px;
+  }
+  select { height: 38px; }
+  textarea { min-height: 120px; resize: vertical; }
+  .opts { display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap; }
+  .opts > div { flex: 1; min-width: 150px; }
+  .row { display: flex; gap: 12px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    background: var(--accent); color: #04121f; border: 0; border-radius: 7px;
+    padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; width: auto;
+  }
+  button:hover { filter: brightness(1.08); }
+  button.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); font-weight: 500; }
+  button.small { padding: 6px 11px; font-size: 12px; }
+  button:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+  .filebtn { color: var(--muted); font-size: 13px; }
+  .msg { flex-basis: 100%; font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+  .msg.err { color: var(--failed); }
+  /* wordlist chain field */
+  .chainbox { display: flex; align-items: center; gap: 8px; }
+  .chaintext {
+    flex: 1; color: var(--text); font-family: ui-monospace, monospace; font-size: 12px;
+    background: #0d1117; border: 1px solid var(--border); border-radius: 7px;
+    padding: 9px 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* modal */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 10;
+  }
+  .modal-backdrop[hidden] { display: none; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; width: 100%; max-width: 460px;
+  }
+  .modal h3 { margin: 0 0 4px; font-size: 16px; }
+  .muted { color: var(--muted); font-size: 12px; margin: 0; }
+  .chain-list { list-style: none; margin: 14px 0; padding: 0; }
+  .chain-list li {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #0d1117; border: 1px solid var(--border); border-radius: 7px;
+    padding: 8px 11px; margin-bottom: 6px; font-family: ui-monospace, monospace; font-size: 13px;
+  }
+  .chain-list .idx { color: var(--muted); margin-right: 8px; }
+  .chain-list li.muted { justify-content: flex-start; font-family: inherit; }
+  .li-actions { display: flex; align-items: center; gap: 2px; }
+  .mv { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 4px; }
+  .mv:disabled { opacity: .3; cursor: default; }
+  .x { background: none; border: 0; color: var(--failed); cursor: pointer; font-size: 15px; padding: 0 4px; }
+  .modal-actions { display: flex; justify-content: space-between; margin-top: 16px; }
+  /* results */
+  table { width: 100%; border-collapse: collapse; }
+  th, td {
+    text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border);
+    font-size: 13px; vertical-align: top;
+  }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  td.mono, td.hash, td.result { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  td.hash { color: var(--muted); max-width: 320px; overflow-wrap: anywhere; }
+  td.result { color: var(--done); overflow-wrap: anywhere; }
+  .status { font-weight: 600; text-transform: capitalize; }
+  .s-queued { color: var(--queued); } .s-running { color: var(--running); }
+  .s-done { color: var(--done); } .s-failed { color: var(--failed); }
+  .empty { color: var(--muted); padding: 24px 10px; text-align: center; }
+  .panel-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  td.actions { text-align: right; width: 1%; white-space: nowrap; }
+  .del { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 6px; }
+  .del:hover { color: var(--failed); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Catra<span>Cracker</span></h1>
+  <div class="sub">
+    A thin wrapper around <a href="https://hashcat.net/hashcat/" target="_blank" rel="noopener">hashcat</a>
+    — it does the cracking; this just queues jobs and shows results.
+  </div>
+</header>
+<main>
+  <div class="panel">
+    <label for="hashes">Hashes — one per line</label>
+    <textarea id="hashes" placeholder="5f4dcc3b5aa765d61d8327deb882cf99&#10;$2b$10$..."></textarea>
+    <div class="opts">
+      <div>
+        <label for="mode">Mode</label>
+        <select id="mode"><option value="">auto-detect</option></select>
+      </div>
+      <div>
+        <label>Wordlist chain</label>
+        <div class="chainbox">
+          <span id="chainDisplay" class="chaintext">default chain</span>
+          <button type="button" id="editChain" class="ghost small">Edit</button>
+        </div>
+      </div>
+      <div>
+        <label for="rule">Rule (optional)</label>
+        <input id="rule" placeholder="none" />
+      </div>
+    </div>
+    <div class="row">
+      <button id="submit">Crack</button>
+      <span class="filebtn">Load hashes from file:</span>
+      <input type="file" id="file" accept=".txt,text/plain" class="filebtn" />
+      <span class="msg" id="msg"></span>
+    </div>
+    <div class="row">
+      <span class="filebtn">Upload wordlist:</span>
+      <input type="file" id="wlfile" accept=".txt,text/plain" class="filebtn" />
+      <button id="wlupload">Upload</button>
+      <span class="msg" id="wlmsg"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <span class="muted">Results</span>
+      <button id="deleteAll" class="ghost small">Delete all</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Hash</th><th>Mode</th><th>Status</th><th>Result</th><th></th></tr>
+      </thead>
+      <tbody id="rows">
+        <tr><td colspan="6" class="empty">No jobs yet.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<!-- Wordlist chain editor -->
+<div id="chainModal" class="modal-backdrop" hidden>
+  <div class="modal">
+    <h3>Wordlist chain</h3>
+    <p class="muted">Add wordlists from the folder below. One is a plain run; two or more is a chain, tried top to bottom (reorder with ↑ ↓), stopping at the first crack. Leave it empty to use the default chain.</p>
+    <ul id="chainList" class="chain-list"></ul>
+    <div class="row">
+      <select id="chainAdd"></select>
+      <button id="chainAddBtn" class="small">+ Add</button>
+    </div>
+    <div class="modal-actions">
+      <button id="chainReset" class="ghost small">Clear</button>
+      <button id="chainDone">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+// Show a status/error message under the Crack button (red when it's an error).
+function setMsg(text, isError) {
+  const el = $("msg");
+  el.textContent = text;
+  el.classList.toggle("err", !!isError);
+}
+// Shorten a long hash for inline error lines.
+const shortHash = (h) => (h.length > 16 ? h.slice(0, 14) + "…" : h);
+
+// ---- state ----
+let AVAILABLE = [];     // all wordlist names on the server
+let DEFAULTCHAIN = [];  // server's default pivot chain
+let chain = null;       // null = use default chain; else an explicit ordered array
+let editing = [];       // working copy while the modal is open
+
+// ---- load hashes from a text file into the textarea ----
+$("file").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  $("hashes").value = (await f.text()).trim();
+  setMsg(`Loaded ${f.name}`);
+});
+
+// ---- mode dropdown ----
+async function populateModes() {
+  let data;
+  try { data = await (await fetch("/modes")).json(); } catch { return; }
+  const sel = $("mode"), cur = sel.value;
+  sel.innerHTML = '<option value="">auto-detect</option>' +
+    data.modes.map((m) => `<option value="${m.mode}">${m.name} (${m.mode})</option>`).join("");
+  sel.value = cur;
+}
+
+// ---- wordlists + chain ----
+async function loadWordlists() {
+  let data;
+  try { data = await (await fetch("/wordlists")).json(); } catch { return; }
+  AVAILABLE = data.wordlists;
+  DEFAULTCHAIN = data.default;
+  renderChain();
+  if (!$("chainModal").hidden) renderModal();
+}
+const effectiveChain = () => chain ?? DEFAULTCHAIN;
+const sameArray = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+
+function renderChain() {
+  const c = effectiveChain();
+  $("chainDisplay").textContent =
+    (chain === null ? "default: " : "") + (c.length ? c.join(" → ") : "(none)");
+}
+function renderModal() {
+  $("chainList").innerHTML = editing.length
+    ? editing.map((w, i) =>
+        `<li>
+          <span><span class="idx">${i + 1}.</span>${w}</span>
+          <span class="li-actions">
+            <button class="mv" data-move="${i}" data-dir="-1" ${i === 0 ? "disabled" : ""} title="move up">↑</button>
+            <button class="mv" data-move="${i}" data-dir="1" ${i === editing.length - 1 ? "disabled" : ""} title="move down">↓</button>
+            <button class="x" data-i="${i}" title="remove">✕</button>
+          </span>
+        </li>`
+      ).join("")
+    : '<li class="muted">No wordlists added — the default chain will run.</li>';
+  const addable = AVAILABLE.filter((w) => !editing.includes(w));
+  $("chainAdd").innerHTML = addable.length
+    ? addable.map((w) => `<option value="${w}">${w}</option>`).join("")
+    : '<option value="">(all added)</option>';
+  $("chainAdd").disabled = !addable.length;
+  $("chainAddBtn").disabled = !addable.length;
+}
+// Open as an empty builder on the default; when a custom chain is already set,
+// open with it so it can be edited.
+function openModal() { editing = chain ? [...chain] : []; $("chainModal").hidden = false; renderModal(); }
+function closeModal() {
+  // Collapse to "default" when unchanged or emptied; otherwise store the chain.
+  chain = (!editing.length || sameArray(editing, DEFAULTCHAIN)) ? null : [...editing];
+  $("chainModal").hidden = true;
+  renderChain();
+}
+$("editChain").addEventListener("click", openModal);
+$("chainDone").addEventListener("click", closeModal);
+$("chainReset").addEventListener("click", () => { editing = []; renderModal(); });
+$("chainAddBtn").addEventListener("click", () => {
+  const w = $("chainAdd").value;
+  if (w && !editing.includes(w)) { editing.push(w); renderModal(); }
+});
+$("chainList").addEventListener("click", (e) => {
+  const rm = e.target.closest(".x");
+  if (rm) { editing.splice(Number(rm.dataset.i), 1); renderModal(); return; }
+  const mv = e.target.closest(".mv");
+  if (mv) {
+    const i = Number(mv.dataset.move), j = i + Number(mv.dataset.dir);
+    if (j >= 0 && j < editing.length) {
+      [editing[i], editing[j]] = [editing[j], editing[i]];
+      renderModal();
+    }
+  }
+});
+$("chainModal").addEventListener("click", (e) => { if (e.target === $("chainModal")) closeModal(); });
+
+// ---- upload a wordlist ----
+function deriveName(filename) {
+  return filename.replace(/\.txt$/i, "").replace(/[^A-Za-z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "").slice(0, 64) || "list";
+}
+$("wlupload").addEventListener("click", async () => {
+  const f = $("wlfile").files[0];
+  if (!f) { $("wlmsg").textContent = "Choose a .txt file first."; return; }
+  const name = deriveName(f.name);
+  $("wlmsg").textContent = `Uploading "${name}"...`;
+  try {
+    const res = await fetch(`/wordlists?name=${encodeURIComponent(name)}`, {
+      method: "POST", headers: { "Content-Type": "text/plain" }, body: f,
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) { $("wlmsg").textContent = `Upload failed: ${body.error || res.status}`; return; }
+    $("wlmsg").textContent = `Uploaded "${name}" (${body.bytes} bytes) — add it via Edit.`;
+    await loadWordlists();
+  } catch (err) {
+    $("wlmsg").textContent = `Upload error: ${err.message}`;
+  }
+});
+
+// ---- submit ----
+$("submit").addEventListener("click", async () => {
+  const hashes = $("hashes").value.split("\n").map((h) => h.trim()).filter(Boolean);
+  if (!hashes.length) { setMsg("Enter at least one hash.", true); return; }
+
+  const mode = $("mode").value;       // "" = auto-detect
+  const rule = $("rule").value.trim();
+
+  setMsg(`Submitting ${hashes.length}...`);
+  let ok = 0;
+  const errors = []; // one line per rejected hash, with the actual reason
+  for (const hash of hashes) {
+    const body = { hash };
+    if (mode) body.mode = Number(mode);
+    if (chain) body.wordlists = chain; // explicit chain overrides the default
+    if (rule) body.rule = rule;
+    try {
+      const res = await fetch("/jobs", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) { ok++; continue; }
+      // Surface the server's own error message (it returns { error }).
+      let reason = `HTTP ${res.status}`;
+      try { const j = await res.json(); if (j && j.error) reason = `${res.status} — ${j.error}`; } catch {}
+      errors.push(`${shortHash(hash)}: ${reason}`);
+    } catch (e) {
+      errors.push(`${shortHash(hash)}: can't reach server (${e.message})`);
+    }
+  }
+  if (errors.length) {
+    // Keep the textarea so the user can see/retry what failed.
+    setMsg(`Submitted ${ok}, ${errors.length} rejected — ${errors.join(" · ")}`, true);
+  } else {
+    setMsg(`Submitted ${ok}.`);
+    $("hashes").value = "";
+  }
+  refresh();
+});
+
+// ---- results table ----
+function statusCell(s) { return `<span class="status s-${s}">${s}</span>`; }
+async function refresh() {
+  let jobs;
+  try { jobs = await (await fetch("/jobs")).json(); } catch { return; }
+  const rows = $("rows");
+  if (!jobs.length) {
+    rows.innerHTML = '<tr><td colspan="6" class="empty">No jobs yet.</td></tr>';
+    return;
+  }
+  rows.innerHTML = jobs.map((j) => `
+    <tr>
+      <td class="mono">${j.id}</td>
+      <td class="hash">${escapeHtml(j.hash)}</td>
+      <td class="mono">${j.mode}${j.mode_source === "auto" ? " <span style='color:var(--muted)'>(auto)</span>" : ""}</td>
+      <td>${statusCell(j.status)}</td>
+      <td class="result">${j.result != null ? escapeHtml(j.result) : ""}</td>
+      <td class="actions"><button class="del" data-del="${j.id}" title="delete">✕</button></td>
+    </tr>`).join("");
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// Delete one job (per-row ✕) or all jobs (Delete all).
+$("rows").addEventListener("click", async (e) => {
+  const b = e.target.closest(".del");
+  if (!b) return;
+  try { await fetch(`/jobs/${b.dataset.del}`, { method: "DELETE" }); } catch {}
+  refresh();
+});
+$("deleteAll").addEventListener("click", async () => {
+  if (!confirm("Delete all jobs?")) return;
+  try { await fetch("/jobs", { method: "DELETE" }); } catch {}
+  refresh();
+});
+
+populateModes();
+loadWordlists();
+refresh();
+setInterval(refresh, 2000);
+</script>
+</body>
+</html>
