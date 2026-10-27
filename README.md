@@ -101,7 +101,7 @@ Node.js · Express · better-sqlite3 · commander (CLI) · hashcat · a single d
 ### Install
 
 ```bash
-git clone <your-fork-url> catracracker
+git clone https://github.com/mojitoen/catracracker
 cd catracracker
 npm install
 ```
